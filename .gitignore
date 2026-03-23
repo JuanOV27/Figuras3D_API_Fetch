@@ -1,0 +1,18 @@
+# Maven / Spring Boot
+Figuras3D/target/
+Figuras3D/.mvn/wrapper/maven-wrapper.jar
+*.class
+*.jar
+*.war
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Claude
+.claude/
+
+# OS
+Thumbs.db
+.DS_Store

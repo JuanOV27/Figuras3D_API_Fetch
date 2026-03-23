@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Figuras 3D</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #12121a;
+    --bg3: #1a1a26;
+    --surface: #1e1e2e;
+    --surface2: #252538;
+    --border: #2e2e45;
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --accent3: #c084fc;
+    --glow: rgba(124,58,237,0.35);
+    --text: #f1f0ff;
+    --text2: #a9a8c8;
+    --text3: #6b6a88;
+    --success: #22c55e;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --info: #06b6d4;
+    --r: 16px;
+    --r2: 24px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%; overflow: hidden;
+    background: var(--bg);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text);
+  }
+
+  /* ─── APP SHELL ─── */
+  #app {
+    display: flex; flex-direction: column;
+    height: 100dvh; max-width: 430px;
+    margin: 0 auto; position: relative; overflow: hidden;
+    background: var(--bg);
+  }
+
+  /* noise texture overlay */
+  #app::before {
+    content: '';
+    position: fixed; inset: 0; pointer-events: none; z-index: 999;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    background-size: 200px 200px;
+    opacity: 0.4;
+  }
+
+  /* ─── HEADER ─── */
+  .header {
+    flex-shrink: 0;
+    padding: 52px 20px 12px;
+    background: linear-gradient(180deg, var(--bg) 60%, transparent);
+    position: relative; z-index: 10;
+  }
+  .header-inner { display: flex; align-items: center; justify-content: space-between; }
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+    background: linear-gradient(135deg, var(--accent3) 0%, var(--accent) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .logo span { -webkit-text-fill-color: var(--text2); font-weight: 400; font-size: 13px; display: block; margin-top: -2px; }
+  .header-count {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 12px;
+    font-size: 12px; color: var(--text2); font-weight: 500;
+  }
+
+  /* ─── MAIN SCROLL AREA ─── */
+  .main {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    padding: 0 0 90px;
+    scroll-behavior: smooth;
+  }
+  .main::-webkit-scrollbar { width: 0; }
+
+  /* ─── VIEWS ─── */
+  .view { display: none; animation: fadeUp 0.3s ease; }
+  .view.active { display: block; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── FILTER CHIPS ─── */
+  .chips-wrap {
+    padding: 8px 20px 4px;
+    overflow-x: auto; display: flex; gap: 8px;
+    scrollbar-width: none;
+  }
+  .chips-wrap::-webkit-scrollbar { display: none; }
+  .chip {
+    flex-shrink: 0;
+    padding: 6px 14px; border-radius: 20px;
+    font-size: 12px; font-weight: 500; cursor: pointer;
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text2); transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .chip.active {
+    background: var(--accent); border-color: var(--accent);
+    color: #fff; box-shadow: 0 0 12px var(--glow);
+  }
+
+  /* ─── CARD GRID ─── */
+  .card-grid { padding: 12px 20px; display: flex; flex-direction: column; gap: 12px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r2); overflow: hidden;
+    cursor: pointer; position: relative;
+    transition: transform 0.18s, box-shadow 0.18s;
+    active: scale(0.98);
+  }
+  .card:active { transform: scale(0.97); }
+  .card-glow {
+    position: absolute; top: -30px; right: -30px;
+    width: 100px; height: 100px; border-radius: 50%;
+    background: var(--glow); filter: blur(30px); pointer-events: none;
+  }
+
+  /* ─── CARD IMAGE ─── */
+  .card-img-wrap {
+    width: 100%; height: 180px;
+    overflow: hidden; position: relative;
+    background: var(--surface2);
+    border-radius: var(--r2) var(--r2) 0 0;
+  }
+  .card-img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: top center;
+    display: block;
+    transition: transform 0.35s ease;
+  }
+  .card:active .card-img { transform: scale(1.04); }
+  .card-img-badge {
+    position: absolute; bottom: 8px; left: 10px;
+    background: rgba(10,10,15,0.75); backdrop-filter: blur(8px);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 3px 10px; font-size: 10px; color: var(--text2);
+  }
+  .card-img-fallback {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 8px; color: var(--text3);
+    font-size: 42px;
+  }
+  .card-img-fallback span { font-size: 12px; letter-spacing: 0.5px; }
+
+  .card-body { padding: 14px 20px 18px; position: relative; z-index: 1; }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+  .card-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px; font-weight: 700;
+    color: var(--text); line-height: 1.2;
+    max-width: 200px;
+  }
+  .card-id { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .badge {
+    padding: 3px 10px; border-radius: 12px;
+    font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+    text-transform: uppercase; white-space: nowrap;
+  }
+  .badge-accion    { background: rgba(124,58,237,0.2); color: var(--accent3); border: 1px solid rgba(124,58,237,0.3); }
+  .badge-colec     { background: rgba(6,182,212,0.15); color: var(--info); border: 1px solid rgba(6,182,212,0.25); }
+  .badge-custom    { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.25); }
+  .badge-geo       { background: rgba(34,197,94,0.15); color: var(--success); border: 1px solid rgba(34,197,94,0.25); }
+
+  .card-desc {
+    font-size: 13px; color: var(--text2);
+    margin-bottom: 14px; line-height: 1.5;
+  }
+  .card-dims {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .dim-pill {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 4px 10px;
+    font-size: 11px; color: var(--text2);
+  }
+  .dim-pill span { color: var(--text3); }
+  .card-footer {
+    display: flex; gap: 6px; margin-top: 12px;
+    padding-top: 12px; border-top: 1px solid var(--border);
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--success); margin-top: 3px;
+    box-shadow: 0 0 6px var(--success);
+  }
+  .status-dot.off { background: var(--text3); box-shadow: none; }
+  .card-status { font-size: 11px; color: var(--text2); display: flex; align-items: center; gap: 5px; }
+
+  /* ─── SKELETON ─── */
+  .skeleton { animation: shimmer 1.4s infinite; }
+  .sk-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--r2); padding: 18px 20px; margin-bottom: 12px;
+  }
+  .sk-line {
+    height: 14px; border-radius: 6px;
+    background: linear-gradient(90deg, var(--surface2) 25%, var(--surface) 50%, var(--surface2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    margin-bottom: 10px;
+  }
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* ─── EMPTY STATE ─── */
+  .empty {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 60px 30px; text-align: center; gap: 16px;
+  }
+  .empty-icon { font-size: 56px; opacity: 0.3; }
+  .empty h3 { font-family: 'Syne', sans-serif; font-size: 18px; color: var(--text2); }
+  .empty p { font-size: 14px; color: var(--text3); }
+
+  /* ─── SEARCH VIEW ─── */
+  .search-header { padding: 8px 20px 16px; }
+  .search-box {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 16px;
+    transition: border-color 0.2s;
+  }
+  .search-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--glow); }
+  .search-box svg { color: var(--text3); flex-shrink: 0; }
+  .search-box input {
+    flex: 1; background: none; border: none; outline: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; color: var(--text);
+  }
+  .search-box input::placeholder { color: var(--text3); }
+  .search-results { padding: 0 20px; }
+  .search-hint { padding: 40px 20px; text-align: center; color: var(--text3); font-size: 14px; }
+
+  /* ─── FORM VIEW ─── */
+  .form-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 8px 20px 20px;
+  }
+  .back-btn {
+    width: 38px; height: 38px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--text2); flex-shrink: 0;
+  }
+  .form-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px; font-weight: 700;
+  }
+  .form-body { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  .field label {
+    display: block; font-size: 12px; font-weight: 500;
+    color: var(--text2); margin-bottom: 6px; letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px; color: var(--text);
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    -webkit-appearance: none;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--glow);
+  }
+  .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b6a88' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; padding-right: 40px; }
+  .field select option { background: var(--bg2); }
+  .field textarea { resize: none; height: 80px; line-height: 1.5; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  /* Toggle */
+  .toggle-field { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+  .toggle-label { font-size: 14px; font-weight: 500; }
+  .toggle-sub { font-size: 12px; color: var(--text2); margin-top: 1px; }
+  .toggle {
+    position: relative; width: 48px; height: 26px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-track {
+    position: absolute; inset: 0; border-radius: 13px;
+    background: var(--surface2); border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.2s;
+  }
+  .toggle input:checked + .toggle-track { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px var(--glow); }
+  .toggle-thumb {
+    position: absolute; top: 3px; left: 3px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: #fff; transition: transform 0.2s;
+    pointer-events: none;
+  }
+  .toggle input:checked ~ .toggle-thumb { transform: translateX(22px); }
+
+  .btn {
+    width: 100%; padding: 15px; border-radius: 14px;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px; font-weight: 600; letter-spacing: 0.3px;
+    border: none; cursor: pointer; transition: all 0.18s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent2) 0%, var(--accent) 100%);
+    color: #fff; box-shadow: 0 4px 20px var(--glow);
+  }
+  .btn-primary:active { transform: scale(0.98); box-shadow: 0 2px 10px var(--glow); }
+  .btn-danger {
+    background: rgba(239,68,68,0.15); color: var(--danger);
+    border: 1px solid rgba(239,68,68,0.3);
+  }
+  .btn-danger:active { background: rgba(239,68,68,0.25); }
+  .btn-ghost {
+    background: var(--surface); color: var(--text2);
+    border: 1px solid var(--border);
+  }
+
+  /* ─── BOTTOM NAV ─── */
+  .bottom-nav {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 80px; z-index: 100;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: stretch;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 4px; cursor: pointer;
+    color: var(--text3); font-size: 10px; font-weight: 500;
+    letter-spacing: 0.3px; text-transform: uppercase;
+    transition: color 0.2s; position: relative;
+  }
+  .nav-item.active { color: var(--accent3); }
+  .nav-item.active::before {
+    content: ''; position: absolute; top: 0;
+    width: 32px; height: 2px; border-radius: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+  .nav-icon { font-size: 20px; line-height: 1; }
+  .nav-add .nav-icon {
+    width: 44px; height: 44px; border-radius: 14px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; box-shadow: 0 4px 16px var(--glow);
+    margin-bottom: -4px;
+  }
+
+  /* ─── DETAIL SHEET ─── */
+  .sheet-overlay {
+    position: absolute; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    display: none; animation: fadeIn 0.2s ease;
+  }
+  .sheet-overlay.open { display: block; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .sheet {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--bg2);
+    border-radius: 28px 28px 0 0;
+    border: 1px solid var(--border); border-bottom: none;
+    max-height: 85dvh; overflow-y: auto;
+    transform: translateY(100%);
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+  }
+  .sheet::-webkit-scrollbar { display: none; }
+  .sheet-overlay.open .sheet { transform: translateY(0); }
+
+  .sheet-handle {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: var(--border); margin: 12px auto 0;
+  }
+  .sheet-img-wrap {
+    width: 100%; height: 240px;
+    overflow: hidden; position: relative;
+    background: var(--surface2);
+    margin-top: 12px;
+  }
+  .sheet-img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: top center;
+    display: block;
+  }
+  .sheet-img-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(to top, var(--bg2) 0%, transparent 55%);
+  }
+  .sheet-content { padding: 20px 24px; }
+  .sheet-tipo { margin-bottom: 8px; }
+  .sheet-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px; font-weight: 800;
+    line-height: 1.1; margin-bottom: 4px;
+    background: linear-gradient(135deg, #fff 0%, var(--text2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .sheet-id { font-size: 12px; color: var(--text3); margin-bottom: 16px; }
+  .sheet-desc {
+    font-size: 14px; color: var(--text2); line-height: 1.6;
+    padding: 14px; background: var(--surface);
+    border-radius: 12px; border: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+  .info-cell {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px;
+  }
+  .info-cell-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .info-cell-val { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; color: var(--text); }
+  .info-cell-unit { font-size: 10px; color: var(--text3); }
+
+  .dims-section { margin-bottom: 20px; }
+  .dims-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .dims-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .dim-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+  .dim-box-label { font-size: 10px; color: var(--text3); letter-spacing: 0.5px; }
+  .dim-box-val { font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 700; color: var(--accent3); }
+
+  .sheet-actions { display: flex; gap: 10px; margin-top: 4px; }
+  .sheet-actions .btn { flex: 1; padding: 13px; }
+
+  /* ─── TOAST ─── */
+  .toasts {
+    position: absolute; top: 60px; left: 16px; right: 16px;
+    z-index: 500; display: flex; flex-direction: column; gap: 8px;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 16px;
+    font-size: 13px; font-weight: 500;
+    display: flex; align-items: center; gap: 10px;
+    animation: toastIn 0.3s ease;
+    pointer-events: all;
+  }
+  .toast.success { border-color: rgba(34,197,94,0.4); color: var(--success); }
+  .toast.error   { border-color: rgba(239,68,68,0.4); color: var(--danger); }
+  .toast.info    { border-color: rgba(124,58,237,0.4); color: var(--accent3); }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes toastOut {
+    to { opacity: 0; transform: translateY(-10px) scale(0.95); }
+  }
+
+  /* ─── CONFIRM DIALOG ─── */
+  .dialog-overlay {
+    position: absolute; inset: 0; z-index: 300;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(6px);
+    display: none; align-items: center; justify-content: center; padding: 30px;
+  }
+  .dialog-overlay.open { display: flex; animation: fadeIn 0.2s; }
+  .dialog {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--r2); padding: 28px 24px;
+    width: 100%; animation: fadeUp 0.3s;
+  }
+  .dialog h3 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .dialog p { font-size: 14px; color: var(--text2); margin-bottom: 24px; line-height: 1.5; }
+  .dialog-actions { display: flex; gap: 10px; }
+  .dialog-actions .btn { flex: 1; padding: 13px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOASTS -->
+  <div class="toasts" id="toasts"></div>
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-inner">
+      <div class="logo">
+        Figuras 3D
+        <span>Catálogo de colección</span>
+      </div>
+      <div class="header-count" id="headerCount">0 figuras</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="main">
+
+    <!-- ═══ VISTA CATÁLOGO ═══ -->
+    <div class="view active" id="view-catalogo">
+      <div class="chips-wrap" id="chips"></div>
+      <div class="card-grid" id="cardGrid"></div>
+    </div>
+
+    <!-- ═══ VISTA BÚSQUEDA ═══ -->
+    <div class="view" id="view-buscar">
+      <div class="search-header">
+        <div class="search-box">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input type="text" id="searchInput" placeholder="Buscar por nombre, tipo o ID…" autocomplete="off">
+        </div>
+      </div>
+      <div class="search-results" id="searchResults">
+        <div class="search-hint">✦ Escribe para buscar figuras</div>
+      </div>
+    </div>
+
+    <!-- ═══ VISTA FORMULARIO ═══ -->
+    <div class="view" id="view-form">
+      <div class="form-header">
+        <div class="back-btn" id="formBackBtn">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>
+        </div>
+        <div class="form-title" id="formTitle">Nueva Figura</div>
+      </div>
+      <div class="form-body">
+        <div class="field">
+          <label>ID</label>
+          <input type="number" id="fId" placeholder="Ej: 1050" min="1">
+        </div>
+        <div class="field">
+          <label>Nombre</label>
+          <input type="text" id="fNombre" placeholder="Ej: Batman">
+        </div>
+        <div class="field">
+          <label>Descripción</label>
+          <textarea id="fDescripcion" placeholder="Breve descripción de la figura…"></textarea>
+        </div>
+        <div class="field">
+          <label>Tipo</label>
+          <select id="fTipo">
+            <option value="figura de acción">Figura de Acción</option>
+            <option value="coleccionable">Coleccionable</option>
+            <option value="personalizado">Personalizado</option>
+            <option value="esfera">Esfera</option>
+            <option value="cubo">Cubo</option>
+            <option value="cilindro">Cilindro</option>
+          </select>
+        </div>
+        <div class="row3">
+          <div class="field">
+            <label>Altura (cm)</label>
+            <input type="number" id="fAltura" placeholder="0.0" step="0.1" min="0">
+          </div>
+          <div class="field">
+            <label>Ancho (cm)</label>
+            <input type="number" id="fAncho" placeholder="0.0" step="0.1" min="0">
+          </div>
+          <div class="field">
+            <label>Largo (cm)</label>
+            <input type="number" id="fLargo" placeholder="0.0" step="0.1" min="0">
+          </div>
+        </div>
+        <div class="toggle-field">
+          <div>
+            <div class="toggle-label">Estado</div>
+            <div class="toggle-sub">Figura activa en el catálogo</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="fEstado" checked>
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <div class="toggle-field">
+          <div>
+            <div class="toggle-label">Condición</div>
+            <div class="toggle-sub">Nueva (activado) / Usada (desactivado)</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" id="fCondicion" checked>
+            <div class="toggle-track"></div>
+            <div class="toggle-thumb"></div>
+          </label>
+        </div>
+        <button class="btn btn-primary" id="formSubmit">Guardar Figura</button>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" data-nav="catalogo">
+      <div class="nav-icon">⊞</div>
+      Catálogo
+    </div>
+    <div class="nav-item" data-nav="buscar">
+      <div class="nav-icon">⌕</div>
+      Buscar
+    </div>
+    <div class="nav-item nav-add" data-nav="form-new">
+      <div class="nav-icon">+</div>
+    </div>
+    <div class="nav-item" data-nav="noop" style="visibility:hidden"></div>
+    <div class="nav-item" data-nav="noop" style="visibility:hidden"></div>
+  </nav>
+
+  <!-- DETAIL SHEET -->
+  <div class="sheet-overlay" id="sheetOverlay">
+    <div class="sheet" id="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-content" id="sheetContent"></div>
+    </div>
+  </div>
+
+  <!-- CONFIRM DIALOG -->
+  <div class="dialog-overlay" id="dialogOverlay">
+    <div class="dialog">
+      <h3 id="dialogTitle">Eliminar figura</h3>
+      <p id="dialogMsg">¿Estás seguro de que deseas eliminar esta figura? Esta acción no se puede deshacer.</p>
+      <div class="dialog-actions">
+        <button class="btn btn-ghost" id="dialogCancel">Cancelar</button>
+        <button class="btn btn-danger" id="dialogConfirm">Eliminar</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script>
+const API = 'http://localhost:8080/api';
+let figures = [];
+let activeFilter = 'todos';
+let editingId = null;
+
+// ─── API ────────────────────────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function loadAll() {
+  showSkeleton();
+  try {
+    figures = await apiFetch('/catalogo');
+    if (!figures) figures = [];
+    renderCatalog();
+  } catch (e) {
+    showSkeleton(false);
+    toast('No se pudo conectar con el servidor', 'error');
+    document.getElementById('cardGrid').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">⚡</div>
+        <h3>Sin conexión</h3>
+        <p>Asegúrate de que el servidor Spring Boot esté corriendo en el puerto 8080</p>
+      </div>`;
+  }
+}
+
+// ─── RENDER ─────────────────────────────────────────────────────
+const TIPOS = ['todos', 'figura de acción', 'coleccionable', 'personalizado', 'esfera', 'cubo', 'cilindro'];
+const TIPO_LABELS = {
+  'todos': 'Todos',
+  'figura de acción': 'Acción',
+  'coleccionable': 'Coleccionable',
+  'personalizado': 'Personalizado',
+  'esfera': 'Esfera',
+  'cubo': 'Cubo',
+  'cilindro': 'Cilindro'
+};
+
+function badgeClass(tipo) {
+  if (tipo === 'figura de acción') return 'badge-accion';
+  if (tipo === 'coleccionable') return 'badge-colec';
+  if (tipo === 'personalizado') return 'badge-custom';
+  return 'badge-geo';
+}
+
+function renderChips() {
+  const wrap = document.getElementById('chips');
+  wrap.innerHTML = TIPOS.map(t => `
+    <div class="chip ${t === activeFilter ? 'active' : ''}" data-filter="${t}">
+      ${TIPO_LABELS[t]}
+    </div>`).join('');
+  wrap.querySelectorAll('.chip').forEach(c => {
+    c.addEventListener('click', () => {
+      activeFilter = c.dataset.filter;
+      renderChips();
+      renderCards(filteredFigures());
+    });
+  });
+}
+
+function filteredFigures() {
+  if (activeFilter === 'todos') return figures;
+  return figures.filter(f => f.tipo === activeFilter);
+}
+
+function renderCards(list) {
+  const grid = document.getElementById('cardGrid');
+  document.getElementById('headerCount').textContent = `${figures.length} figura${figures.length !== 1 ? 's' : ''}`;
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty">
+      <div class="empty-icon">◈</div>
+      <h3>Sin figuras</h3>
+      <p>No hay figuras en esta categoría.</p>
+    </div>`;
+    return;
+  }
+  grid.innerHTML = list.map(f => `
+    <div class="card" data-id="${f.id}">
+      <div class="card-glow"></div>
+      <div class="card-img-wrap">
+        <img class="card-img"
+          src="../Imagenes/${f.id}.jpeg"
+          alt="${esc(f.nombre)}"
+          onerror="if(!this.dataset.tried){this.dataset.tried='1';this.src='../Imagenes/${f.id}.png';}else{this.style.display='none';this.parentElement.querySelector('.card-img-fallback').style.display='flex';}"
+        >
+        <div class="card-img-fallback" style="display:none">◈ <span>Sin imagen</span></div>
+        <div class="card-img-badge">#${f.id}</div>
+      </div>
+      <div class="card-body">
+        <div class="card-top">
+          <div>
+            <div class="card-name">${esc(f.nombre)}</div>
+            <div class="card-id">#${f.id}</div>
+          </div>
+          <div class="badge ${badgeClass(f.tipo)}">${esc(f.tipo)}</div>
+        </div>
+        <div class="card-desc">${esc(f.descripcion)}</div>
+        <div class="card-dims">
+          <div class="dim-pill"><span>H</span> ${f.altura} cm</div>
+          <div class="dim-pill"><span>W</span> ${f.ancho} cm</div>
+          <div class="dim-pill"><span>L</span> ${f.largo} cm</div>
+        </div>
+        <div class="card-footer">
+          <div class="card-status">
+            <div class="status-dot ${f.estado ? '' : 'off'}"></div>
+            ${f.estado ? 'Activo' : 'Inactivo'}
+          </div>
+          <div style="margin-left:10px" class="card-status">
+            <div class="status-dot ${f.condicion ? '' : 'off'}"></div>
+            ${f.condicion ? 'Nuevo' : 'Usado'}
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  grid.querySelectorAll('.card').forEach(c => {
+    c.addEventListener('click', () => openDetail(+c.dataset.id));
+  });
+}
+
+function renderCatalog() {
+  renderChips();
+  renderCards(filteredFigures());
+}
+
+function showSkeleton(show = true) {
+  if (!show) return;
+  const grid = document.getElementById('cardGrid');
+  grid.innerHTML = [1,2,3].map(() => `
+    <div class="sk-card">
+      <div class="sk-line" style="width:60%;height:20px"></div>
+      <div class="sk-line" style="width:35%;height:12px"></div>
+      <div class="sk-line" style="width:90%;height:14px;margin-top:16px"></div>
+      <div class="sk-line" style="width:75%;height:14px"></div>
+    </div>`).join('');
+}
+
+// ─── DETAIL SHEET ────────────────────────────────────────────────
+function openDetail(id) {
+  const f = figures.find(x => x.id === id);
+  if (!f) return;
+  const sc = document.getElementById('sheetContent');
+  sc.innerHTML = `
+    <div class="sheet-tipo">
+      <span class="badge ${badgeClass(f.tipo)}">${esc(f.tipo)}</span>
+    </div>
+    <div class="sheet-name">${esc(f.nombre)}</div>
+    <div class="sheet-id">ID: ${f.id}</div>
+    <div class="sheet-img-wrap" style="border-radius:16px;margin-bottom:20px;overflow:hidden">
+      <img class="sheet-img"
+        src="../Imagenes/${f.id}.jpeg"
+        alt="${esc(f.nombre)}"
+        onerror="if(!this.dataset.tried){this.dataset.tried='1';this.src='../Imagenes/${f.id}.png';}else{this.parentElement.style.display='none';}"
+      >
+      <div class="sheet-img-overlay"></div>
+    </div>
+    <div class="sheet-desc">${esc(f.descripcion)}</div>
+    <div class="info-grid">
+      <div class="info-cell">
+        <div class="info-cell-label">Estado</div>
+        <div class="info-cell-val" style="color:${f.estado ? 'var(--success)' : 'var(--text3)'}">
+          ${f.estado ? 'Activo' : 'Inactivo'}
+        </div>
+      </div>
+      <div class="info-cell">
+        <div class="info-cell-label">Condición</div>
+        <div class="info-cell-val" style="color:${f.condicion ? 'var(--info)' : 'var(--text2)'}">
+          ${f.condicion ? 'Nuevo' : 'Usado'}
+        </div>
+      </div>
+    </div>
+    <div class="dims-section">
+      <div class="dims-title">Dimensiones</div>
+      <div class="dims-row">
+        <div class="dim-box"><div class="dim-box-label">ALTURA</div><div class="dim-box-val">${f.altura}</div><div class="dim-box-label">cm</div></div>
+        <div class="dim-box"><div class="dim-box-label">ANCHO</div><div class="dim-box-val">${f.ancho}</div><div class="dim-box-label">cm</div></div>
+        <div class="dim-box"><div class="dim-box-label">LARGO</div><div class="dim-box-val">${f.largo}</div><div class="dim-box-label">cm</div></div>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn btn-ghost" id="sheetEdit">✎ Editar</button>
+      <button class="btn btn-danger" id="sheetDelete">✕ Eliminar</button>
+    </div>`;
+
+  document.getElementById('sheetEdit').onclick = () => { closeSheet(); openForm(f); };
+  document.getElementById('sheetDelete').onclick = () => confirmDelete(f);
+  document.getElementById('sheetOverlay').classList.add('open');
+}
+
+function closeSheet() {
+  document.getElementById('sheetOverlay').classList.remove('open');
+}
+
+document.getElementById('sheetOverlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('sheetOverlay')) closeSheet();
+});
+
+// ─── FORM ────────────────────────────────────────────────────────
+function openForm(figura = null) {
+  editingId = figura ? figura.id : null;
+  document.getElementById('formTitle').textContent = figura ? 'Editar Figura' : 'Nueva Figura';
+  document.getElementById('fId').value = figura ? figura.id : '';
+  document.getElementById('fId').readOnly = !!figura;
+  document.getElementById('fId').style.opacity = figura ? '0.5' : '1';
+  document.getElementById('fNombre').value = figura ? figura.nombre : '';
+  document.getElementById('fDescripcion').value = figura ? figura.descripcion : '';
+  document.getElementById('fTipo').value = figura ? figura.tipo : 'figura de acción';
+  document.getElementById('fAltura').value = figura ? figura.altura : '';
+  document.getElementById('fAncho').value = figura ? figura.ancho : '';
+  document.getElementById('fLargo').value = figura ? figura.largo : '';
+  document.getElementById('fEstado').checked = figura ? figura.estado : true;
+  document.getElementById('fCondicion').checked = figura ? figura.condicion : true;
+  showView('form');
+}
+
+document.getElementById('formBackBtn').onclick = () => showView('catalogo');
+
+document.getElementById('formSubmit').onclick = async () => {
+  const id = parseInt(document.getElementById('fId').value);
+  const nombre = document.getElementById('fNombre').value.trim();
+  const descripcion = document.getElementById('fDescripcion').value.trim();
+  const tipo = document.getElementById('fTipo').value;
+  const altura = parseFloat(document.getElementById('fAltura').value);
+  const ancho = parseFloat(document.getElementById('fAncho').value);
+  const largo = parseFloat(document.getElementById('fLargo').value);
+  const estado = document.getElementById('fEstado').checked;
+  const condicion = document.getElementById('fCondicion').checked;
+
+  if (!id || !nombre || isNaN(altura) || isNaN(ancho) || isNaN(largo)) {
+    toast('Completa todos los campos requeridos', 'error'); return;
+  }
+
+  const body = JSON.stringify({ id, nombre, descripcion, tipo, altura, ancho, largo, estado, condicion });
+  const btn = document.getElementById('formSubmit');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+
+  try {
+    let result;
+    if (editingId) {
+      result = await apiFetch('/catalogo', { method: 'PUT', body });
+    } else {
+      result = await apiFetch('/catalogo', { method: 'POST', body });
+    }
+    if (result === null || result === undefined) {
+      toast(editingId ? 'ID no encontrado' : 'Ya existe una figura con ese ID', 'error');
+    } else {
+      toast(editingId ? 'Figura actualizada ✓' : 'Figura creada ✓', 'success');
+      await loadAll();
+      showView('catalogo');
+    }
+  } catch (e) {
+    toast('Error al guardar: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Guardar Figura';
+  }
+};
+
+// ─── DELETE ──────────────────────────────────────────────────────
+let pendingDeleteId = null;
+
+function confirmDelete(f) {
+  pendingDeleteId = f.id;
+  document.getElementById('dialogMsg').textContent =
+    `¿Eliminar "${f.nombre}" (ID: ${f.id})? Esta acción no se puede deshacer.`;
+  document.getElementById('dialogOverlay').classList.add('open');
+}
+
+document.getElementById('dialogCancel').onclick = () => {
+  document.getElementById('dialogOverlay').classList.remove('open');
+  pendingDeleteId = null;
+};
+
+document.getElementById('dialogConfirm').onclick = async () => {
+  if (!pendingDeleteId) return;
+  document.getElementById('dialogOverlay').classList.remove('open');
+  closeSheet();
+  try {
+    const result = await apiFetch(`/catalogo/${pendingDeleteId}`, { method: 'DELETE' });
+    if (result === null) {
+      toast('Figura no encontrada', 'error');
+    } else {
+      toast(`"${result.nombre}" eliminada`, 'info');
+      await loadAll();
+    }
+  } catch (e) {
+    toast('Error al eliminar: ' + e.message, 'error');
+  }
+  pendingDeleteId = null;
+};
+
+// ─── SEARCH ──────────────────────────────────────────────────────
+document.getElementById('searchInput').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  const results = document.getElementById('searchResults');
+  if (!q) { results.innerHTML = '<div class="search-hint">✦ Escribe para buscar figuras</div>'; return; }
+  const found = figures.filter(f =>
+    f.nombre.toLowerCase().includes(q) ||
+    f.tipo.toLowerCase().includes(q) ||
+    String(f.id).includes(q) ||
+    f.descripcion.toLowerCase().includes(q)
+  );
+  if (!found.length) {
+    results.innerHTML = `<div class="empty"><div class="empty-icon">◈</div><h3>Sin resultados</h3><p>No se encontraron figuras para "${esc(q)}"</p></div>`;
+    return;
+  }
+  results.innerHTML = `<div class="card-grid">${found.map(f => `
+    <div class="card" data-id="${f.id}">
+      <div class="card-glow"></div>
+      <div class="card-img-wrap">
+        <img class="card-img"
+          src="../Imagenes/${f.id}.jpeg"
+          alt="${esc(f.nombre)}"
+          onerror="if(!this.dataset.tried){this.dataset.tried='1';this.src='../Imagenes/${f.id}.png';}else{this.style.display='none';this.parentElement.querySelector('.card-img-fallback').style.display='flex';}"
+        >
+        <div class="card-img-fallback" style="display:none">◈ <span>Sin imagen</span></div>
+        <div class="card-img-badge">#${f.id}</div>
+      </div>
+      <div class="card-body">
+        <div class="card-top">
+          <div>
+            <div class="card-name">${esc(f.nombre)}</div>
+            <div class="card-id">#${f.id}</div>
+          </div>
+          <div class="badge ${badgeClass(f.tipo)}">${esc(f.tipo)}</div>
+        </div>
+        <div class="card-desc">${esc(f.descripcion)}</div>
+      </div>
+    </div>`).join('')}</div>`;
+  results.querySelectorAll('.card').forEach(c => {
+    c.addEventListener('click', () => openDetail(+c.dataset.id));
+  });
+});
+
+// ─── NAV ─────────────────────────────────────────────────────────
+document.querySelectorAll('[data-nav]').forEach(el => {
+  el.addEventListener('click', () => {
+    const nav = el.dataset.nav;
+    if (nav === 'noop') return;
+    if (nav === 'form-new') { openForm(); return; }
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    showView(nav);
+  });
+});
+
+function showView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + name)?.classList.add('active');
+  if (name !== 'form') {
+    document.querySelectorAll('.nav-item').forEach(n => {
+      n.classList.toggle('active', n.dataset.nav === name);
+    });
+  }
+}
+
+// ─── TOAST ───────────────────────────────────────────────────────
+function toast(msg, type = 'info') {
+  const wrap = document.getElementById('toasts');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : '◆';
+  el.innerHTML = `<span>${icon}</span> ${esc(msg)}`;
+  wrap.appendChild(el);
+  setTimeout(() => {
+    el.style.animation = 'toastOut 0.3s ease forwards';
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
+}
+
+// ─── UTILS ───────────────────────────────────────────────────────
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── INIT ────────────────────────────────────────────────────────
+loadAll();
+</script>
+</body>
+</html>
